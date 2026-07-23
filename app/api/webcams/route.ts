@@ -51,70 +51,65 @@ type WindyCam = {
   images?: { current?: { preview?: string } };
 };
 
-const TARGET = 5000;
-// World anchor points — the free tier caps a single listing at ~1050, so we
-// accumulate the most-viewed cams around major regions and de-duplicate.
-const REGIONS: [number, number][] = [
-  [50, 10], [48, 2], [41, 12], [52, -1], [55, 37], [40, -3], // Europe
-  [40, -95], [34, -118], [43, -79], [19, -99], [-23, -46], [ -34, -58], // Americas
-  [35, 105], [28, 77], [35, 139], [13, 100], [1, 104], [ -6, 107], // Asia
-  [25, 55], [ -1, 37], [ -33, 18], [ -33, 151], [ -37, 175], // MEA / Oceania
-];
-
-async function windyEntities(key: string): Promise<Entity[]> {
-  const out: Entity[] = [];
-  const seen = new Set<number>();
-  const headers = { "x-windy-api-key": key };
-
-  const collect = (cams: WindyCam[]) => {
-    for (const w of cams) {
-      if (!w.location || seen.has(w.webcamId)) continue;
-      seen.add(w.webcamId);
-      const feed = w.player?.day || w.player?.month || "";
-      const snap = w.images?.current?.preview || "";
-      out.push({
-        uid: "webcams:w" + w.webcamId, layer: "webcams", id: String(w.webcamId),
-        label: w.title || "Webcam " + w.webcamId,
-        lat: w.location.latitude, lng: w.location.longitude, altKm: 0,
-        color: "#c98bff", ring: false,
-        props: {
-          Location: [w.location.city, w.location.country].filter(Boolean).join(", ") || "—",
-          Coordinates: w.location.latitude.toFixed(4) + ", " + w.location.longitude.toFixed(4),
-          ...(snap ? { "🖼 Snapshot": snap } : {}),
-          ...(feed ? { "▶ Live feed": feed } : {}),
-        },
-      });
-    }
+function toEntity(w: WindyCam): Entity | null {
+  if (!w.location) return null;
+  const feed = w.player?.day || w.player?.month || "";
+  const snap = w.images?.current?.preview || "";
+  return {
+    uid: "webcams:w" + w.webcamId, layer: "webcams", id: String(w.webcamId),
+    label: w.title || "Webcam " + w.webcamId,
+    lat: w.location.latitude, lng: w.location.longitude, altKm: 0,
+    color: "#c98bff", ring: false,
+    props: {
+      Location: [w.location.city, w.location.country].filter(Boolean).join(", ") || "—",
+      Coordinates: w.location.latitude.toFixed(4) + ", " + w.location.longitude.toFixed(4),
+      ...(snap ? { "🖼 Snapshot": snap } : {}),
+      ...(feed ? { "▶ Live feed": feed } : {}),
+    },
   };
-
-  const page = async (base: string, maxOffset: number) => {
-    for (let offset = 0; offset <= maxOffset && out.length < TARGET; offset += 50) {
-      const r = await fetch(`${base}&limit=50&offset=${offset}&include=location,player,images`, {
-        headers, cache: "no-store",
-      });
-      if (!r.ok) break;
-      const j = (await r.json()) as { webcams?: WindyCam[] };
-      if (!j.webcams?.length) break;
-      collect(j.webcams);
-    }
-  };
-
-  // 1) Global most-viewed (up to the free-tier cap)
-  await page("https://api.windy.com/webcams/api/v3/webcams?", 1000);
-  if (!out.length) throw new Error("windy: no data");
-  // 2) Fill toward TARGET with regional most-viewed
-  for (const [lat, lng] of REGIONS) {
-    if (out.length >= TARGET) break;
-    await page(`https://api.windy.com/webcams/api/v3/webcams?nearby=${lat},${lng},2000`, 500);
-  }
-  return out.slice(0, TARGET);
 }
 
-export async function GET() {
+async function windyPaged(key: string, base: string, maxOffset: number): Promise<Entity[]> {
+  const out: Entity[] = [];
+  const seen = new Set<number>();
+  for (let offset = 0; offset <= maxOffset; offset += 50) {
+    const r = await fetch(`${base}&limit=50&offset=${offset}&include=location,player,images`, {
+      headers: { "x-windy-api-key": key }, cache: "no-store",
+    });
+    if (!r.ok) break;
+    const j = (await r.json()) as { webcams?: WindyCam[] };
+    if (!j.webcams?.length) break;
+    for (const w of j.webcams) {
+      if (seen.has(w.webcamId)) continue;
+      seen.add(w.webcamId);
+      const e = toEntity(w);
+      if (e) out.push(e);
+    }
+  }
+  return out;
+}
+
+export async function GET(req: Request) {
   const key = process.env.WINDY_KEY;
+  const near = new URL(req.url).searchParams.get("near"); // "lat,lng"
+
+  if (key && near && /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(near)) {
+    // On-demand: public webcams around a flown-to city (radius ~200 km).
+    try {
+      const data = await cached("webcams-near:" + near, 1_800_000, () =>
+        windyPaged(key, `https://api.windy.com/webcams/api/v3/webcams?nearby=${near},200`, 200)
+      );
+      return NextResponse.json({ ok: true, source: "Windy (local)", entities: data });
+    } catch {
+      return NextResponse.json({ ok: true, source: "Windy (local)", entities: [] });
+    }
+  }
+
   if (key) {
     try {
-      const data = await cached("webcams-windy", 3_600_000, () => windyEntities(key));
+      const data = await cached("webcams-windy", 3_600_000, () =>
+        windyPaged(key, "https://api.windy.com/webcams/api/v3/webcams?", 1000)
+      );
       if (data.length) return NextResponse.json({ ok: true, source: "Windy Webcams", entities: data });
     } catch {
       /* fall through to curated */

@@ -36,15 +36,23 @@ export default function Console() {
   // Compose displayed entities from enabled layers (capped for perf)
   const shown = useMemo(() => {
     const out: Entity[] = [];
+    const uids = new Set<string>();
     for (const l of LAYERS) {
       if (!enabled[l.id]) continue;
       const st = layers[l.id];
       if (!st?.entities?.length) continue;
       const cap = CAPS[l.id];
-      out.push(...(cap ? st.entities.slice(0, cap) : st.entities));
+      for (const e of cap ? st.entities.slice(0, cap) : st.entities) {
+        uids.add(e.uid);
+        out.push(e);
+      }
+    }
+    // Merge on-demand local webcams (from fly-to), de-duplicated.
+    if (enabled["webcams"]) {
+      for (const e of localCams) if (!uids.has(e.uid)) out.push(e);
     }
     return out;
-  }, [layers, enabled]);
+  }, [layers, enabled, localCams]);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
@@ -67,10 +75,20 @@ export default function Console() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const flyToPlace = (lat: number, lng: number) => {
+  const [localCams, setLocalCams] = useState<Entity[]>([]);
+  const flyToPlace = async (lat: number, lng: number) => {
     globeApi.current?.flyToPlace?.(lat, lng);
     setQuery("");
     setPlaces([]);
+    // Load public webcams around the destination and reveal the layer.
+    try {
+      const r = await fetch(`/api/webcams?near=${lat.toFixed(4)},${lng.toFixed(4)}`);
+      const j = await r.json();
+      if (j.entities?.length) {
+        setLocalCams(j.entities);
+        setEnabled((s) => ({ ...s, webcams: true }));
+      }
+    } catch { /* ignore */ }
   };
 
   // Heading vectors: for all visible aircraft when "tracks" is on, plus the
