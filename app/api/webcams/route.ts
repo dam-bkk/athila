@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
+import { cached } from "@/lib/cache";
 import type { Entity } from "@/lib/types";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
-// Curated PUBLIC webcams — official 24/7 livestreams the operators publish for
-// public viewing. No key needed. Clicking one opens its live feed. (For a full
-// wall of thousands of embedded cams, the Windy Webcams free API key unlocks
-// that — this curated set is the key-free baseline.)
+// ── Public webcams ──────────────────────────────────────────────────────────
+// If WINDY_KEY is set, we serve the full worldwide set from the Windy Webcams
+// API (tens of thousands of PUBLICLY PUBLISHED webcams — tourism/traffic/weather,
+// with embedded players). Without a key, we fall back to a curated baseline.
+// We ONLY ever surface webcams the operator publishes for public viewing —
+// never unsecured/private cameras.
+
 type Cam = { id: string; name: string; city: string; country: string; lat: number; lng: number; feed: string };
 
-const CAMS: Cam[] = [
+const CURATED: Cam[] = [
   { id: "times-sq", name: "Times Square", city: "New York", country: "USA", lat: 40.7580, lng: -73.9855, feed: "https://www.earthcam.com/usa/newyork/timessquare/?cam=tsstreet" },
   { id: "eiffel", name: "Tour Eiffel / Trocadéro", city: "Paris", country: "France", lat: 48.8600, lng: 2.2880, feed: "https://www.skylinewebcams.com/en/webcam/france/ile-de-france/paris/tour-eiffel.html" },
   { id: "venice", name: "Grand Canal", city: "Venise", country: "Italie", lat: 45.4400, lng: 12.3330, feed: "https://www.skylinewebcams.com/en/webcam/italia/veneto/venezia/canal-grande.html" },
@@ -26,23 +30,71 @@ const CAMS: Cam[] = [
   { id: "reykjavik", name: "Volcan / Reykjavík", city: "Reykjavík", country: "Islande", lat: 64.1466, lng: -21.9426, feed: "https://www.ruv.is/eldgos" },
 ];
 
-const ENTITIES: Entity[] = CAMS.map((c) => ({
-  uid: "webcams:" + c.id,
-  layer: "webcams",
-  id: c.id,
-  label: c.name,
-  lat: c.lat,
-  lng: c.lng,
-  altKm: 0,
-  color: "#c98bff",
-  ring: true,
-  props: {
-    Location: c.city + ", " + c.country,
-    Coordinates: c.lat.toFixed(4) + ", " + c.lng.toFixed(4),
-    "▶ Live feed": c.feed,
-  },
-}));
+function curatedEntities(): Entity[] {
+  return CURATED.map((c) => ({
+    uid: "webcams:" + c.id, layer: "webcams", id: c.id, label: c.name,
+    lat: c.lat, lng: c.lng, altKm: 0, color: "#c98bff", ring: true,
+    props: {
+      Location: c.city + ", " + c.country,
+      Coordinates: c.lat.toFixed(4) + ", " + c.lng.toFixed(4),
+      "▶ Live feed": c.feed,
+    },
+  }));
+}
 
-export function GET() {
-  return NextResponse.json({ ok: true, source: "Public webcams", entities: ENTITIES });
+// Windy Webcams API v3 — paged worldwide fetch (public webcams only).
+type WindyCam = {
+  webcamId: number; title: string;
+  location?: { latitude: number; longitude: number; city?: string; country?: string };
+  player?: { live?: { embed?: string }; day?: { embed?: string } };
+  images?: { current?: { preview?: string } };
+};
+
+async function windyEntities(key: string): Promise<Entity[]> {
+  const out: Entity[] = [];
+  const seen = new Set<number>();
+  // Page through popular webcams worldwide (cap for payload sanity).
+  for (let offset = 0; offset < 600; offset += 50) {
+    const url =
+      "https://api.windy.com/webcams/api/v3/webcams?limit=50&offset=" + offset +
+      "&include=location,player,images&categories=";
+    const r = await fetch(url, { headers: { "x-windy-api-key": key }, cache: "no-store" });
+    if (!r.ok) {
+      if (offset === 0) throw new Error("windy " + r.status);
+      break;
+    }
+    const j = (await r.json()) as { webcams?: WindyCam[] };
+    const cams = j.webcams || [];
+    if (!cams.length) break;
+    for (const w of cams) {
+      if (!w.location || seen.has(w.webcamId)) continue;
+      seen.add(w.webcamId);
+      const feed = w.player?.live?.embed || w.player?.day?.embed || "";
+      out.push({
+        uid: "webcams:w" + w.webcamId, layer: "webcams", id: String(w.webcamId),
+        label: w.title || "Webcam " + w.webcamId,
+        lat: w.location.latitude, lng: w.location.longitude, altKm: 0,
+        color: "#c98bff", ring: false,
+        props: {
+          Location: [w.location.city, w.location.country].filter(Boolean).join(", ") || "—",
+          Coordinates: w.location.latitude.toFixed(4) + ", " + w.location.longitude.toFixed(4),
+          ...(feed ? { "▶ Live feed": feed } : {}),
+        },
+      });
+    }
+  }
+  return out;
+}
+
+export async function GET() {
+  const key = process.env.WINDY_KEY;
+  if (key) {
+    try {
+      const data = await cached("webcams-windy", 3_600_000, () => windyEntities(key));
+      if (data.length) return NextResponse.json({ ok: true, source: "Windy Webcams", entities: data });
+    } catch {
+      /* fall through to curated */
+    }
+  }
+  return NextResponse.json({ ok: true, source: "Curated public", entities: curatedEntities() });
 }

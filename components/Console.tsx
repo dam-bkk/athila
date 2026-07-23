@@ -30,6 +30,8 @@ export default function Console() {
   const [mode, setMode] = useState<"globe" | "3d">("globe");
   const [query, setQuery] = useState("");
   const globeApi = useRef<GlobeControl | null>(null);
+  const isMobile = useIsMobile();
+  useEffect(() => { if (isMobile) setPanelOpen(false); }, [isMobile]);
 
   // Compose displayed entities from enabled layers (capped for perf)
   const shown = useMemo(() => {
@@ -121,8 +123,8 @@ export default function Console() {
       <div
         className="glass"
         style={{
-          position: "fixed", left: 12, top: 12, bottom: 92, width: 46, borderRadius: 12,
-          display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 6, zIndex: 20,
+          position: "fixed", left: 12, top: 12, bottom: isMobile ? 12 : 92, width: 46, borderRadius: 12,
+          display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 6, zIndex: 30,
         }}
       >
         <div style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid var(--accent-hi)", marginBottom: 10 }} className="sweep" />
@@ -141,7 +143,7 @@ export default function Console() {
       </div>
 
       {/* ===== Top bar ===== */}
-      <div style={{ position: "fixed", left: 70, top: 12, right: 12, display: "flex", gap: 8, zIndex: 20, alignItems: "flex-start" }}>
+      <div style={{ position: "fixed", left: 70, top: 12, right: 12, display: "flex", gap: 8, zIndex: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div className="glass" style={{ borderRadius: 12, padding: "10px 16px" }}>
           <div style={{ fontWeight: 700, letterSpacing: ".2em", fontSize: 15 }}>ATHILA</div>
           <div className="eyebrow" style={{ marginTop: 2 }}>Geospatial console · LIVE</div>
@@ -210,7 +212,11 @@ export default function Console() {
 
       {/* ===== Left dossier: layers + KPIs ===== */}
       {panelOpen && (
-      <div className="glass" style={{ position: "fixed", left: 70, top: 84, width: 262, bottom: 92, borderRadius: 14, padding: 16, overflow: "auto", zIndex: 15 }}>
+      <div className="glass" style={{ position: "fixed",
+        left: isMobile ? 64 : 70, top: isMobile ? 118 : 84,
+        width: isMobile ? "calc(100vw - 72px)" : 262,
+        bottom: isMobile ? "auto" : 92, maxHeight: isMobile ? "58vh" : undefined,
+        borderRadius: 14, padding: 16, overflow: "auto", zIndex: isMobile ? 26 : 15 }}>
         <div className="eyebrow">Inventory · Real-time</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "12px 0 18px" }}>
           <Kpi n={totalTracked.toLocaleString("en")} l="Tracked entities" />
@@ -252,7 +258,12 @@ export default function Console() {
 
       {/* ===== Right entity dossier ===== */}
       {selected && (
-        <div className="glass" style={{ position: "fixed", right: 12, top: 84, width: 288, borderRadius: 14, padding: 16, zIndex: 20, maxHeight: "calc(100vh - 190px)", overflow: "auto" }}>
+        <div className="glass" style={{ position: "fixed",
+          right: isMobile ? 8 : 12, left: isMobile ? 8 : undefined,
+          top: isMobile ? undefined : 84, bottom: isMobile ? 8 : undefined,
+          width: isMobile ? "auto" : 288,
+          borderRadius: 14, padding: 16, zIndex: 28,
+          maxHeight: isMobile ? "52vh" : "calc(100vh - 190px)", overflow: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div className="eyebrow" style={{ color: selected.color }}>{selected.layer}</div>
@@ -285,7 +296,8 @@ export default function Console() {
         </div>
       )}
 
-      {/* ===== Bottom timeline / status ===== */}
+      {/* ===== Bottom timeline / status (desktop only) ===== */}
+      {!isMobile && (
       <div className="glass" style={{ position: "fixed", left: 70, right: 12, bottom: 12, height: 68, borderRadius: 14, zIndex: 15, display: "flex", alignItems: "center", padding: "0 18px", gap: 20 }}>
         <div>
           <div className="eyebrow">UTC clock</div>
@@ -304,10 +316,10 @@ export default function Console() {
         <button style={{ ...segBtn(false), padding: "7px 14px" }}>⏸ 1×</button>
         <button style={{ ...segBtn(true), padding: "7px 14px" }}>▶ Go Live</button>
       </div>
+      )}
 
-      {/* ===== Live log ===== */}
-      <div className="glass" style={{ position: "fixed", left: 12, bottom: 92, width: 46, display: "none" }} />
-      <div className="glass" style={{ position: "fixed", right: 12, bottom: 92, width: 288, borderRadius: 12, padding: "10px 12px", zIndex: 14, display: selected ? "none" : "block" }}>
+      {/* ===== Live log (desktop only) ===== */}
+      <div className="glass" style={{ position: "fixed", right: 12, bottom: 92, width: 288, borderRadius: 12, padding: "10px 12px", zIndex: 14, display: isMobile || selected ? "none" : "block" }}>
         <div className="eyebrow" style={{ marginBottom: 6 }}>System feed</div>
         {log.length === 0 && <div style={{ fontSize: 11, color: "var(--dim2)" }} className="mono">initializing…</div>}
         {log.map((l, i) => (
@@ -325,6 +337,18 @@ function Kpi({ n, l }: { n: string; l: string }) {
       <div className="eyebrow" style={{ marginTop: 5, fontSize: 8.5 }}>{l}</div>
     </div>
   );
+}
+
+function useIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 820px)");
+    const on = () => setM(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return m;
 }
 
 function Clock() {
