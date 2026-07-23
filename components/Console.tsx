@@ -29,6 +29,7 @@ export default function Console() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [mode, setMode] = useState<"globe" | "3d">("globe");
   const [query, setQuery] = useState("");
+  const [localCams, setLocalCams] = useState<Entity[]>([]);
   const globeApi = useRef<GlobeControl | null>(null);
   const isMobile = useIsMobile();
   useEffect(() => { if (isMobile) setPanelOpen(false); }, [isMobile]);
@@ -75,7 +76,6 @@ export default function Console() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const [localCams, setLocalCams] = useState<Entity[]>([]);
   const flyToPlace = async (lat: number, lng: number) => {
     globeApi.current?.flyToPlace?.(lat, lng);
     setQuery("");
