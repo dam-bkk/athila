@@ -16,4 +16,6 @@ services:
       HOSTNAME: "0.0.0.0"
       # Optional free API key → unlocks worldwide public webcams (else curated).
       WINDY_KEY: ${WINDY_KEY:-}
+      # Optional free Cesium Ion token → 3D terrain + worldwide 3D buildings.
+      CESIUM_TOKEN: ${CESIUM_TOKEN:-}
     restart: unless-stopped

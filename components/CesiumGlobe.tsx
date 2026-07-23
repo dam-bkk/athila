@@ -42,6 +42,14 @@ export default function CesiumGlobe({
       if (destroyed || !containerRef.current) return;
       CesiumRef.current = Cesium;
 
+      // Cesium Ion token (optional) → unlocks world terrain + 3D buildings.
+      let hasIon = false;
+      try {
+        const cfg = await fetch("/api/config").then((r) => r.json());
+        if (cfg.cesiumToken) { Cesium.Ion.defaultAccessToken = cfg.cesiumToken; hasIon = true; }
+      } catch { /* no token → flat imagery only */ }
+      if (destroyed || !containerRef.current) return;
+
       const viewer = new Cesium.Viewer(containerRef.current, {
         baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
         timeline: false, animation: false, navigationHelpButton: false, fullscreenButton: false,
@@ -56,6 +64,12 @@ export default function CesiumGlobe({
       viewerRef.current = viewer;
       viewer.scene.globe.enableLighting = true;
       if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = true;
+
+      // Real 3D terrain + worldwide 3D buildings (needs Ion token).
+      if (hasIon) {
+        Cesium.createWorldTerrainAsync().then((t) => { if (!destroyed) viewer.terrainProvider = t; }).catch(() => {});
+        Cesium.createOsmBuildingsAsync().then((b) => { if (!destroyed) viewer.scene.primitives.add(b); }).catch(() => {});
+      }
       viewer.camera.flyHome(0);
       viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(10, 25, 22_000_000) });
 
