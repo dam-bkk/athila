@@ -1,0 +1,17 @@
+# ATHILA — isolated compose project (does not touch the shared /opt/apps stack).
+# Publishes on the docker bridge gateway so Caddy reaches it at 172.18.0.1:3014,
+# exactly like the pikko / nuance / trackspend apps.
+services:
+  athila:
+    container_name: athila
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: athila
+    ports:
+      - "172.18.0.1:3014:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    restart: unless-stopped
