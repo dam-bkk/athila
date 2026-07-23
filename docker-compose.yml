@@ -18,4 +18,6 @@ services:
       WINDY_KEY: ${WINDY_KEY:-}
       # Optional free Cesium Ion token → 3D terrain + worldwide 3D buildings.
       CESIUM_TOKEN: ${CESIUM_TOKEN:-}
+      # Optional free AISStream key → live maritime vessel positions.
+      AISSTREAM_KEY: ${AISSTREAM_KEY:-}
     restart: unless-stopped

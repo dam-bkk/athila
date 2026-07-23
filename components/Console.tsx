@@ -9,7 +9,7 @@ import GlobeCanvas from "./GlobeCanvas";
 // Heavy 3D engine — load only when the user switches to 3D view.
 const CesiumGlobe = nextDynamic(() => import("./CesiumGlobe"), { ssr: false });
 
-const CAPS: Partial<Record<LayerId, number>> = { aircraft: 2500 };
+const CAPS: Partial<Record<LayerId, number>> = { aircraft: 2500, vessels: 3000 };
 
 export default function Console() {
   const [satCap, setSatCap] = useState(1200);

@@ -18,13 +18,15 @@
     "react-globe.gl": "^2.38.0",
     "resium": "^1.24.0",
     "satellite.js": "^4.1.4",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
