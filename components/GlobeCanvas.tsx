@@ -10,6 +10,7 @@ const IMAGERY: Record<string, string> = {
   night: "//unpkg.com/three-globe/example/img/earth-night.jpg",
   day: "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
   topo: "//unpkg.com/three-globe/example/img/earth-topology.png",
+  clouds: "/api/earth-texture", // real NASA GIBS true-color w/ today's clouds
 };
 
 type Arc = {

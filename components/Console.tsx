@@ -19,7 +19,7 @@ export default function Console() {
     "open-secrets": true,
   });
   const [selected, setSelected] = useState<Entity | null>(null);
-  const [imagery, setImagery] = useState<"night" | "day" | "topo">("night");
+  const [imagery, setImagery] = useState<"night" | "day" | "topo" | "clouds">("night");
   const [rotate, setRotate] = useState(true);
   const [query, setQuery] = useState("");
 
@@ -128,9 +128,9 @@ export default function Console() {
 
         {/* imagery + rotate */}
         <div className="glass" style={{ borderRadius: 12, padding: 4, display: "flex", gap: 2 }}>
-          {(["night", "day", "topo"] as const).map((m) => (
+          {(["night", "day", "clouds", "topo"] as const).map((m) => (
             <button key={m} onClick={() => setImagery(m)} style={segBtn(imagery === m)}>
-              {m === "night" ? "Night" : m === "day" ? "Day" : "Terrain"}
+              {m === "night" ? "Night" : m === "day" ? "Day" : m === "clouds" ? "Clouds ⛅" : "Terrain"}
             </button>
           ))}
           <button onClick={() => setRotate((r) => !r)} style={segBtn(rotate)}>⟳ Spin</button>
