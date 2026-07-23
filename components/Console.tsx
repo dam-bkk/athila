@@ -276,6 +276,19 @@ export default function Console() {
             const val = String(v);
             const isUrl = /^https?:\/\//.test(val);
             const isImg = isUrl && (k.includes("Snapshot") || /imgproxy|\.jpe?g($|\?)/.test(val));
+            const isEmbed = isUrl && k.includes("Live feed") && /windy\.com|\/embed/.test(val);
+            if (isEmbed) {
+              return (
+                <div key={k} style={{ margin: "8px 0" }}>
+                  <div className="eyebrow" style={{ marginBottom: 6 }}>Live feed</div>
+                  <div style={{ position: "relative", width: "100%", paddingBottom: "56%", borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
+                    <iframe src={val} title={selected.label} allow="autoplay; fullscreen"
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
+                  </div>
+                  <a href={val} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10.5, color: "var(--accent-hi)", textDecoration: "none" }}>Plein écran ↗</a>
+                </div>
+              );
+            }
             if (isImg) {
               return (
                 // eslint-disable-next-line @next/next/no-img-element

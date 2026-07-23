@@ -46,7 +46,8 @@ function curatedEntities(): Entity[] {
 type WindyCam = {
   webcamId: number; title: string;
   location?: { latitude: number; longitude: number; city?: string; country?: string };
-  player?: { live?: { embed?: string }; day?: { embed?: string } };
+  // player values are embed-URL strings keyed by timelapse window (day/month/…).
+  player?: { day?: string; month?: string; year?: string; lifetime?: string };
   images?: { current?: { preview?: string } };
 };
 
@@ -69,7 +70,7 @@ async function windyEntities(key: string): Promise<Entity[]> {
     for (const w of cams) {
       if (!w.location || seen.has(w.webcamId)) continue;
       seen.add(w.webcamId);
-      const feed = w.player?.live?.embed || w.player?.day?.embed || "";
+      const feed = w.player?.day || w.player?.month || "";
       const snap = w.images?.current?.preview || "";
       out.push({
         uid: "webcams:w" + w.webcamId, layer: "webcams", id: String(w.webcamId),
