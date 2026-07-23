@@ -55,7 +55,7 @@ async function windyEntities(key: string): Promise<Entity[]> {
   const out: Entity[] = [];
   const seen = new Set<number>();
   // Page through the most-viewed webcams worldwide (cap for payload sanity).
-  for (let offset = 0; offset < 1000; offset += 50) {
+  for (let offset = 0; offset < 5000; offset += 50) {
     const url =
       "https://api.windy.com/webcams/api/v3/webcams?limit=50&offset=" + offset +
       "&include=location,player,images";
