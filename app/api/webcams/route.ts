@@ -53,11 +53,11 @@ type WindyCam = {
 async function windyEntities(key: string): Promise<Entity[]> {
   const out: Entity[] = [];
   const seen = new Set<number>();
-  // Page through popular webcams worldwide (cap for payload sanity).
-  for (let offset = 0; offset < 600; offset += 50) {
+  // Page through the most-viewed webcams worldwide (cap for payload sanity).
+  for (let offset = 0; offset < 1000; offset += 50) {
     const url =
       "https://api.windy.com/webcams/api/v3/webcams?limit=50&offset=" + offset +
-      "&include=location,player,images&categories=";
+      "&include=location,player,images";
     const r = await fetch(url, { headers: { "x-windy-api-key": key }, cache: "no-store" });
     if (!r.ok) {
       if (offset === 0) throw new Error("windy " + r.status);
@@ -70,6 +70,7 @@ async function windyEntities(key: string): Promise<Entity[]> {
       if (!w.location || seen.has(w.webcamId)) continue;
       seen.add(w.webcamId);
       const feed = w.player?.live?.embed || w.player?.day?.embed || "";
+      const snap = w.images?.current?.preview || "";
       out.push({
         uid: "webcams:w" + w.webcamId, layer: "webcams", id: String(w.webcamId),
         label: w.title || "Webcam " + w.webcamId,
@@ -78,6 +79,7 @@ async function windyEntities(key: string): Promise<Entity[]> {
         props: {
           Location: [w.location.city, w.location.country].filter(Boolean).join(", ") || "—",
           Coordinates: w.location.latitude.toFixed(4) + ", " + w.location.longitude.toFixed(4),
+          ...(snap ? { "🖼 Snapshot": snap } : {}),
           ...(feed ? { "▶ Live feed": feed } : {}),
         },
       });

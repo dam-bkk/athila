@@ -275,6 +275,15 @@ export default function Console() {
           {Object.entries(selected.props).map(([k, v]) => {
             const val = String(v);
             const isUrl = /^https?:\/\//.test(val);
+            const isImg = isUrl && (k.includes("Snapshot") || /imgproxy|\.jpe?g($|\?)/.test(val));
+            if (isImg) {
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <a key={k} href={val} target="_blank" rel="noopener noreferrer" style={{ display: "block", margin: "8px 0" }}>
+                  <img src={val} alt={selected.label} style={{ width: "100%", borderRadius: 8, border: "1px solid var(--line)", display: "block" }} />
+                </a>
+              );
+            }
             return (
               <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: "1px solid var(--line)", fontSize: 12 }}>
                 <span style={{ color: "var(--dim)", flex: "none" }}>{k}</span>
