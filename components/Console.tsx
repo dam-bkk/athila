@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LAYERS, type Entity, type LayerId } from "@/lib/types";
 import { useData } from "@/lib/useData";
-import GlobeCanvas from "./GlobeCanvas";
+import GlobeCanvas, { type GlobeApi } from "./GlobeCanvas";
 
 const CAPS: Partial<Record<LayerId, number>> = { aircraft: 2500 };
 
@@ -20,8 +20,11 @@ export default function Console() {
   });
   const [selected, setSelected] = useState<Entity | null>(null);
   const [imagery, setImagery] = useState<"night" | "day" | "topo" | "clouds">("night");
-  const [rotate, setRotate] = useState(true);
+  const [rotate, setRotate] = useState(false);
+  const [tracks, setTracks] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [query, setQuery] = useState("");
+  const globeApi = useRef<GlobeApi | null>(null);
 
   // Compose displayed entities from enabled layers (capped for perf)
   const shown = useMemo(() => {
@@ -42,26 +45,34 @@ export default function Console() {
     return shown.filter((e) => e.label.toLowerCase().includes(q)).slice(0, 8);
   }, [query, shown]);
 
-  // heading vector arc for a selected aircraft
+  // Heading vectors: for all visible aircraft when "tracks" is on, plus the
+  // selected aircraft highlighted.
   const arcs = useMemo(() => {
-    if (!selected || selected.layer !== "aircraft") return [];
-    const head = Number(String(selected.props.Cap).replace("°", "")) || 0;
-    const rad = (head * Math.PI) / 180;
-    const d = 4;
-    return [
-      {
-        startLat: selected.lat,
-        startLng: selected.lng,
-        endLat: selected.lat + Math.cos(rad) * d,
-        endLng: selected.lng + Math.sin(rad) * d,
-        color: ["#4de0c8", "#2f6be0"],
-      },
-    ];
-  }, [selected]);
+    const vec = (e: Entity, color: string[], len: number) => {
+      const head = Number(String(e.props.Heading).replace("°", "")) || 0;
+      const rad = (head * Math.PI) / 180;
+      return {
+        startLat: e.lat,
+        startLng: e.lng,
+        endLat: e.lat + Math.cos(rad) * len,
+        endLng: e.lng + Math.sin(rad) * len,
+        color,
+      };
+    };
+    const out: ReturnType<typeof vec>[] = [];
+    if (tracks) {
+      shown
+        .filter((e) => e.layer === "aircraft")
+        .slice(0, 250)
+        .forEach((p) => out.push(vec(p, ["#4de0c8", "rgba(77,224,200,0)"], 2.5)));
+    }
+    if (selected?.layer === "aircraft") out.push(vec(selected, ["#ffd23f", "#2f6be0"], 4));
+    return out;
+  }, [tracks, shown, selected]);
 
   const totalTracked = LAYERS.reduce((a, l) => a + (enabled[l.id] ? layers[l.id]?.count || 0 : 0), 0);
   const countries = new Set(
-    (layers.aircraft?.entities || []).map((e) => String(e.props.Pays)).filter((p) => p && p !== "—")
+    (layers.aircraft?.entities || []).map((e) => String(e.props.Country)).filter((p) => p && p !== "—")
   ).size;
 
   return (
@@ -73,6 +84,7 @@ export default function Console() {
         arcs={arcs}
         imagery={imagery}
         autoRotate={rotate}
+        apiRef={globeApi}
       />
 
       {/* ===== Left icon rail ===== */}
@@ -84,9 +96,14 @@ export default function Console() {
         }}
       >
         <div style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid var(--accent-hi)", marginBottom: 10 }} className="sweep" />
-        {["◐", "▤", "⛨", "◎", "⚙"].map((g, i) => (
-          <button key={i} style={railBtn(i === 0)}>{g}</button>
-        ))}
+        <button title="Recentrer la vue" style={railBtn(false)} onClick={() => globeApi.current?.reset()}>◐</button>
+        <button title="Afficher/masquer le panneau" style={railBtn(panelOpen)} onClick={() => setPanelOpen((v) => !v)}>▤</button>
+        <button title="Open Secrets" style={railBtn(!!enabled["open-secrets"])} onClick={() => setEnabled((s) => ({ ...s, "open-secrets": !s["open-secrets"] }))}>⛨</button>
+        <button title="Trajectoires avions" style={railBtn(tracks)} onClick={() => setTracks((v) => !v)}>◎</button>
+        <button title="Rotation auto" style={railBtn(rotate)} onClick={() => setRotate((v) => !v)}>⚙</button>
+        <div style={{ height: 8 }} />
+        <button title="Zoom avant" style={railBtn(false)} onClick={() => globeApi.current?.zoom(0.7)}>+</button>
+        <button title="Zoom arrière" style={railBtn(false)} onClick={() => globeApi.current?.zoom(1.4)}>−</button>
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 9, color: "var(--dim2)", writingMode: "vertical-rl", letterSpacing: ".3em" }}>
           ATHILA
@@ -133,6 +150,7 @@ export default function Console() {
               {m === "night" ? "Night" : m === "day" ? "Day" : m === "clouds" ? "Clouds ⛅" : "Terrain"}
             </button>
           ))}
+          <button onClick={() => setTracks((t) => !t)} style={segBtn(tracks)}>✈ Tracks</button>
           <button onClick={() => setRotate((r) => !r)} style={segBtn(rotate)}>⟳ Spin</button>
         </div>
 
@@ -143,6 +161,7 @@ export default function Console() {
       </div>
 
       {/* ===== Left dossier: layers + KPIs ===== */}
+      {panelOpen && (
       <div className="glass" style={{ position: "fixed", left: 70, top: 84, width: 262, bottom: 92, borderRadius: 14, padding: 16, overflow: "auto", zIndex: 15 }}>
         <div className="eyebrow">Inventory · Real-time</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "12px 0 18px" }}>
@@ -154,7 +173,6 @@ export default function Console() {
         {LAYERS.map((l) => {
           const st = layers[l.id];
           const on = !!enabled[l.id];
-          const status = l.needsKey && st?.status !== "ok" ? "keyless" : st?.status || "idle";
           return (
             <div key={l.id} onClick={() => !l.needsKey && setEnabled((s) => ({ ...s, [l.id]: !s[l.id] }))}
               style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--line)", cursor: l.needsKey ? "default" : "pointer", opacity: l.needsKey ? 0.5 : 1 }}>
@@ -182,6 +200,7 @@ export default function Console() {
           onChange={(e) => setSatCap(+e.target.value)} style={{ width: "100%", accentColor: "var(--accent)" }} />
         <div style={{ fontSize: 10.5, color: "var(--dim2)", marginTop: 4 }}>{satCap.toLocaleString("en")} objects propagated</div>
       </div>
+      )}
 
       {/* ===== Right entity dossier ===== */}
       {selected && (
@@ -251,8 +270,7 @@ function Kpi({ n, l }: { n: string; l: string }) {
 
 function Clock() {
   const [t, setT] = useState("--:--:--");
-  useMemo(() => {
-    if (typeof window === "undefined") return;
+  useEffect(() => {
     const tick = () => setT(new Date().toISOString().slice(11, 19));
     tick();
     const id = setInterval(tick, 1000);

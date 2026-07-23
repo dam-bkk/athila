@@ -24,6 +24,7 @@ export function useData(satCap: number) {
   const [layers, setLayers] = useState<Record<string, LayerState>>({});
   const satRecs = useRef<{ rec: satellite.SatRec; name: string; group: string }[]>([]);
   const [sats, setSats] = useState<Entity[]>([]);
+  const [satCount, setSatCount] = useState(0);
   const [log, setLog] = useState<string[]>([]);
 
   const addLog = useCallback((m: string) => {
@@ -31,7 +32,10 @@ export function useData(satCap: number) {
   }, []);
 
   const setLayer = (id: string, p: Partial<LayerState>) =>
-    setLayers((s) => ({ ...s, [id]: { entities: [], source: "", status: "idle", count: 0, ...s[id], ...p } }));
+    setLayers((s) => {
+      const cur: LayerState = s[id] ?? { entities: [], source: "", status: "idle", count: 0 };
+      return { ...s, [id]: { ...cur, ...p } };
+    });
 
   const fetchRest = useCallback(
     async (id: LayerId) => {
@@ -47,7 +51,7 @@ export function useData(satCap: number) {
           count: j.entities.length,
         });
         addLog(`▸ ${id} — ${j.entities.length} entities (${j.source})`);
-      } catch (e) {
+      } catch {
         setLayer(id, { status: "error" });
         addLog(`✕ ${id} unavailable`);
       }
@@ -71,6 +75,7 @@ export function useData(satCap: number) {
           }
         })
         .filter(Boolean) as { rec: satellite.SatRec; name: string; group: string }[];
+      setSatCount(satRecs.current.length);
       setLayer("satellites", { status: "ok", source: "CelesTrak", count: satRecs.current.length });
       addLog(`▸ satellites — ${satRecs.current.length} TLE (CelesTrak)`);
     } catch {
@@ -90,7 +95,7 @@ export function useData(satCap: number) {
       const s = recs[i];
       try {
         const pv = satellite.propagate(s.rec, now);
-        if (!pv.position || typeof pv.position === "boolean") continue;
+        if (!pv || !pv.position || typeof pv.position === "boolean") continue;
         const gd = satellite.eciToGeodetic(pv.position as satellite.EciVec3<number>, gmst);
         const altKm = gd.height;
         if (!isFinite(altKm)) continue;
@@ -144,7 +149,7 @@ export function useData(satCap: number) {
     satellites: {
       ...(layers.satellites || { source: "CelesTrak", status: "ok" }),
       entities: sats,
-      count: satRecs.current.length,
+      count: satCount,
     } as LayerState,
   };
 

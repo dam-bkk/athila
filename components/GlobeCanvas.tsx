@@ -17,6 +17,11 @@ type Arc = {
   startLat: number; startLng: number; endLat: number; endLng: number; color: string[];
 };
 
+export type GlobeApi = {
+  zoom: (factor: number) => void;
+  reset: () => void;
+};
+
 export default function GlobeCanvas({
   entities,
   selected,
@@ -24,6 +29,7 @@ export default function GlobeCanvas({
   arcs,
   imagery = "night",
   autoRotate,
+  apiRef,
 }: {
   entities: Entity[];
   selected: Entity | null;
@@ -31,8 +37,23 @@ export default function GlobeCanvas({
   arcs: Arc[];
   imagery?: keyof typeof IMAGERY;
   autoRotate: boolean;
+  apiRef?: React.MutableRefObject<GlobeApi | null>;
 }) {
   const globeRef = useRef<any>(null);
+
+  // Expose an imperative zoom/reset API to the parent (rail buttons, zoom +/-).
+  useEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = {
+      zoom: (factor: number) => {
+        const g = globeRef.current;
+        if (!g) return;
+        const pov = g.pointOfView();
+        g.pointOfView({ altitude: Math.max(0.3, Math.min(6, pov.altitude * factor)) }, 350);
+      },
+      reset: () => globeRef.current?.pointOfView({ lat: 25, lng: 10, altitude: 2.5 }, 700),
+    };
+  }, [apiRef]);
   const [dim, setDim] = useState({ w: 800, h: 600 });
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -84,10 +105,13 @@ export default function GlobeCanvas({
         pointsData={entities}
         pointLat="lat"
         pointLng="lng"
-        pointAltitude={(d: any) => Math.min(2.2, d.altKm / 6371) + 0.006}
+        // Flat dots on the surface — no extruded spikes. Satellites & vessels
+        // sit flat; aircraft are near-surface at this scale anyway.
+        pointAltitude={0.004}
         pointColor="color"
-        pointRadius={(d: any) => (d.uid === selected?.uid ? 0.42 : d.altKm > 100 ? 0.16 : 0.2)}
-        pointResolution={4}
+        pointRadius={(d: any) =>
+          d.uid === selected?.uid ? 0.55 : d.layer === "satellites" ? 0.13 : d.ring ? 0.3 : 0.24}
+        pointResolution={6}
         pointsMerge={false}
         pointLabel={(d: any) => `<div style="font:12px ui-sans-serif;color:#e6edf7;background:rgba(10,17,32,.9);border:1px solid rgba(120,160,220,.3);padding:5px 8px;border-radius:6px;backdrop-filter:blur(6px)">${d.label}</div>`}
         onPointClick={(d: any) => onSelect(d as Entity)}
