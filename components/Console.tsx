@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LAYERS, type Entity, type LayerId } from "@/lib/types";
+import nextDynamic from "next/dynamic";
+import { LAYERS, type Entity, type LayerId, type GlobeControl } from "@/lib/types";
 import { useData } from "@/lib/useData";
-import GlobeCanvas, { type GlobeApi } from "./GlobeCanvas";
+import GlobeCanvas from "./GlobeCanvas";
+
+// Heavy 3D engine — load only when the user switches to 3D view.
+const CesiumGlobe = nextDynamic(() => import("./CesiumGlobe"), { ssr: false });
 
 const CAPS: Partial<Record<LayerId, number>> = { aircraft: 2500 };
 
@@ -23,8 +27,9 @@ export default function Console() {
   const [rotate, setRotate] = useState(false);
   const [tracks, setTracks] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [mode, setMode] = useState<"globe" | "3d">("globe");
   const [query, setQuery] = useState("");
-  const globeApi = useRef<GlobeApi | null>(null);
+  const globeApi = useRef<GlobeControl | null>(null);
 
   // Compose displayed entities from enabled layers (capped for perf)
   const shown = useMemo(() => {
@@ -42,8 +47,29 @@ export default function Console() {
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return shown.filter((e) => e.label.toLowerCase().includes(q)).slice(0, 8);
+    return shown.filter((e) => e.label.toLowerCase().includes(q)).slice(0, 6);
   }, [query, shown]);
+
+  // City / place geocoding (debounced) → fly-to
+  const [places, setPlaces] = useState<{ name: string; lat: number; lng: number }[]>([]);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) { setPlaces([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch("/api/geocode?q=" + encodeURIComponent(q));
+        const j = await r.json();
+        setPlaces(j.places || []);
+      } catch { setPlaces([]); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const flyToPlace = (lat: number, lng: number) => {
+    globeApi.current?.flyToPlace?.(lat, lng);
+    setQuery("");
+    setPlaces([]);
+  };
 
   // Heading vectors: for all visible aircraft when "tracks" is on, plus the
   // selected aircraft highlighted.
@@ -77,15 +103,19 @@ export default function Console() {
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <GlobeCanvas
-        entities={shown}
-        selected={selected}
-        onSelect={setSelected}
-        arcs={arcs}
-        imagery={imagery}
-        autoRotate={rotate}
-        apiRef={globeApi}
-      />
+      {mode === "3d" ? (
+        <CesiumGlobe entities={shown} selected={selected} onSelect={setSelected} apiRef={globeApi} />
+      ) : (
+        <GlobeCanvas
+          entities={shown}
+          selected={selected}
+          onSelect={setSelected}
+          arcs={arcs}
+          imagery={imagery}
+          autoRotate={rotate}
+          apiRef={globeApi}
+        />
+      )}
 
       {/* ===== Left icon rail ===== */}
       <div
@@ -123,13 +153,23 @@ export default function Console() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search an entity, callsign, satellite…"
+            placeholder="Search a city, entity, callsign…"
             style={{ background: "none", border: 0, color: "var(--txt)", outline: "none", width: "100%", fontSize: 12, padding: "11px 0" }}
           />
-          {results.length > 0 && (
-            <div className="card" style={{ position: "absolute", top: 46, left: 0, right: 0, borderRadius: 10, overflow: "hidden", zIndex: 30 }}>
+          {(results.length > 0 || places.length > 0) && query.trim() && (
+            <div className="card" style={{ position: "absolute", top: 46, left: 0, right: 0, borderRadius: 10, overflow: "hidden", zIndex: 30, maxHeight: 340, overflowY: "auto" }}>
+              {places.map((p, i) => (
+                <div key={"pl" + i} onClick={() => flyToPlace(p.lat, p.lng)}
+                  style={{ padding: "9px 12px", fontSize: 12, cursor: "pointer", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(45,107,224,.18)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  <span style={{ color: "var(--accent-hi)" }}>📍</span>
+                  <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</span>
+                  <span style={{ color: "var(--dim2)", fontSize: 9.5 }}>fly</span>
+                </div>
+              ))}
               {results.map((r) => (
-                <div key={r.uid} onClick={() => { setSelected(r); setQuery(""); }}
+                <div key={r.uid} onClick={() => { setSelected(r); globeApi.current?.flyTo?.(r); setQuery(""); setPlaces([]); }}
                   style={{ padding: "9px 12px", fontSize: 12, cursor: "pointer", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,.05)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
@@ -143,7 +183,14 @@ export default function Console() {
 
         <div style={{ flex: 1 }} />
 
-        {/* imagery + rotate */}
+        {/* view engine */}
+        <div className="glass" style={{ borderRadius: 12, padding: 4, display: "flex", gap: 2 }}>
+          <button onClick={() => setMode("globe")} style={segBtn(mode === "globe")}>◍ Globe</button>
+          <button onClick={() => setMode("3d")} style={segBtn(mode === "3d")}>◉ 3D</button>
+        </div>
+
+        {/* imagery + rotate (globe view only) */}
+        {mode === "globe" && (
         <div className="glass" style={{ borderRadius: 12, padding: 4, display: "flex", gap: 2 }}>
           {(["night", "day", "clouds", "topo"] as const).map((m) => (
             <button key={m} onClick={() => setImagery(m)} style={segBtn(imagery === m)}>
@@ -153,6 +200,7 @@ export default function Console() {
           <button onClick={() => setTracks((t) => !t)} style={segBtn(tracks)}>✈ Tracks</button>
           <button onClick={() => setRotate((r) => !r)} style={segBtn(rotate)}>⟳ Spin</button>
         </div>
+        )}
 
         <div className="glass" style={{ borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
           <span className="pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--sel)" }} />
@@ -213,12 +261,23 @@ export default function Console() {
             <button onClick={() => setSelected(null)} style={{ background: "none", border: 0, color: "var(--dim)", fontSize: 20 }}>×</button>
           </div>
           <div style={{ margin: "14px 0", height: 1, background: "var(--line)" }} />
-          {Object.entries(selected.props).map(([k, v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--line)", fontSize: 12 }}>
-              <span style={{ color: "var(--dim)" }}>{k}</span>
-              <b className="tabular" style={{ fontWeight: 600, textAlign: "right", maxWidth: 160 }}>{String(v)}</b>
-            </div>
-          ))}
+          {Object.entries(selected.props).map(([k, v]) => {
+            const val = String(v);
+            const isUrl = /^https?:\/\//.test(val);
+            return (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: "1px solid var(--line)", fontSize: 12 }}>
+                <span style={{ color: "var(--dim)", flex: "none" }}>{k}</span>
+                {isUrl ? (
+                  <a href={val} target="_blank" rel="noopener noreferrer"
+                    style={{ color: "var(--accent-hi)", fontWeight: 600, textAlign: "right", textDecoration: "none" }}>
+                    Open live ↗
+                  </a>
+                ) : (
+                  <b className="tabular" style={{ fontWeight: 600, textAlign: "right", maxWidth: 170 }}>{val}</b>
+                )}
+              </div>
+            );
+          })}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 11, color: "var(--dim2)" }}>
             <span className="mono">{selected.lat.toFixed(4)}, {selected.lng.toFixed(4)}</span>
             <span className="mono">ALT {Math.round(selected.altKm)} km</span>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { Entity } from "@/lib/types";
+import type { Entity, GlobeControl } from "@/lib/types";
 
 const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 
@@ -15,11 +15,6 @@ const IMAGERY: Record<string, string> = {
 
 type Arc = {
   startLat: number; startLng: number; endLat: number; endLng: number; color: string[];
-};
-
-export type GlobeApi = {
-  zoom: (factor: number) => void;
-  reset: () => void;
 };
 
 export default function GlobeCanvas({
@@ -37,7 +32,7 @@ export default function GlobeCanvas({
   arcs: Arc[];
   imagery?: keyof typeof IMAGERY;
   autoRotate: boolean;
-  apiRef?: React.MutableRefObject<GlobeApi | null>;
+  apiRef?: React.MutableRefObject<GlobeControl | null>;
 }) {
   const globeRef = useRef<any>(null);
 
@@ -52,6 +47,8 @@ export default function GlobeCanvas({
         g.pointOfView({ altitude: Math.max(0.3, Math.min(6, pov.altitude * factor)) }, 350);
       },
       reset: () => globeRef.current?.pointOfView({ lat: 25, lng: 10, altitude: 2.5 }, 700),
+      flyToPlace: (lat: number, lng: number) =>
+        globeRef.current?.pointOfView({ lat, lng, altitude: 0.35 }, 1200),
     };
   }, [apiRef]);
   const [dim, setDim] = useState({ w: 800, h: 600 });

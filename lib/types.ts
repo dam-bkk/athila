@@ -48,9 +48,17 @@ export const LAYERS: LayerMeta[] = [
   { id: "wildfires",   name: "Wildfires",     glyph: "◆", color: "#ff7a1a", desc: "Active fire hotspots (NASA FIRMS)", needsKey: true,  keyName: "FIRMS_KEY",   live: true },
   { id: "vessels",     name: "Vessels",       glyph: "⬢", color: "#39c0ff", desc: "Maritime AIS traffic (AISStream)",  needsKey: true,  keyName: "AISSTREAM_KEY", live: true },
   { id: "animals",     name: "Wildlife",      glyph: "❋", color: "#a0e04d", desc: "GPS-tagged fauna (Movebank)",       needsKey: true,  keyName: "MOVEBANK_USER", live: false },
-  { id: "webcams",     name: "Webcams",       glyph: "⧉", color: "#c98bff", desc: "Public feeds (Windy Webcams)",      needsKey: true,  keyName: "WINDY_KEY",    live: false },
+  { id: "webcams",     name: "Webcams",       glyph: "⧉", color: "#c98bff", desc: "Curated public livestreams",        needsKey: false, live: false },
 ];
 
 export const LAYER_MAP: Record<LayerId, LayerMeta> = Object.fromEntries(
   LAYERS.map((l) => [l.id, l])
 ) as Record<LayerId, LayerMeta>;
+
+// Shared imperative camera control, implemented by both globe engines.
+export type GlobeControl = {
+  zoom: (factor: number) => void;
+  reset: () => void;
+  flyTo?: (e: Entity) => void;
+  flyToPlace?: (lat: number, lng: number) => void;
+};
