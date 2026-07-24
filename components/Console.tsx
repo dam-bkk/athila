@@ -117,9 +117,7 @@ export default function Console() {
   }, [tracks, shown, selected]);
 
   const totalTracked = LAYERS.reduce((a, l) => a + (enabled[l.id] ? layers[l.id]?.count || 0 : 0), 0);
-  const countries = new Set(
-    (layers.aircraft?.entities || []).map((e) => String(e.props.Country)).filter((p) => p && p !== "—")
-  ).size;
+  const aircraftLive = layers.aircraft?.count || 0;
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
@@ -238,7 +236,7 @@ export default function Console() {
         <div className="eyebrow">Inventory · Real-time</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "12px 0 18px" }}>
           <Kpi n={totalTracked.toLocaleString("en")} l="Tracked entities" />
-          <Kpi n={String(countries)} l="Countries in view" />
+          <Kpi n={aircraftLive.toLocaleString("en")} l="Live aircraft" />
         </div>
 
         <div className="eyebrow" style={{ marginBottom: 8 }}>Active layers</div>
