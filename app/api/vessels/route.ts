@@ -22,10 +22,16 @@ export function GET() {
     props: {
       Vessel: v.name,
       MMSI: String(v.mmsi),
+      ...(v.shipType ? { Type: v.shipType } : {}),
+      ...(v.callsign ? { Callsign: v.callsign } : {}),
+      ...(v.imo ? { IMO: String(v.imo) } : {}),
       Speed: v.sog.toFixed(1) + " kn",
       Heading: Math.round(v.cog) + "°",
       Status: v.status,
+      ...(v.destination ? { Destination: v.destination } : {}),
+      ...(v.eta ? { ETA: v.eta } : {}),
       Position: v.lat.toFixed(4) + ", " + v.lng.toFixed(4),
+      "Voyage track": `https://www.marinetraffic.com/en/ais/details/ships/mmsi:${v.mmsi}`,
     },
   }));
 

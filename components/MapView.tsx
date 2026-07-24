@@ -54,6 +54,8 @@ export default function MapView({
   imagery = "dark",
   autoRotate = false,
   showCables = true,
+  projection = "globe",
+  onCursor,
   apiRef,
 }: {
   entities: Entity[];
@@ -63,6 +65,8 @@ export default function MapView({
   imagery?: Basemap;
   autoRotate?: boolean;
   showCables?: boolean;
+  projection?: "globe" | "flat";
+  onCursor?: (lat: number, lng: number, zoom: number) => void;
   apiRef?: React.MutableRefObject<GlobeControl | null>;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -72,11 +76,15 @@ export default function MapView({
   const selectedRef = useRef<Entity | null>(selected);
   const onSelectRef = useRef(onSelect);
   const showCablesRef = useRef(showCables);
+  const projectionRef = useRef(projection);
+  const onCursorRef = useRef(onCursor);
   entitiesRef.current = entities;
   arcsRef.current = arcs;
   selectedRef.current = selected;
   onSelectRef.current = onSelect;
   showCablesRef.current = showCables;
+  projectionRef.current = projection;
+  onCursorRef.current = onCursor;
 
   // ---- GeoJSON builders ----
   const entityFC = (): GeoJSON.FeatureCollection => ({
@@ -117,7 +125,7 @@ export default function MapView({
     const m = mapRef.current;
     if (!m) return;
     try {
-      m.setProjection({ type: "globe" });
+      m.setProjection({ type: projectionRef.current === "flat" ? "mercator" : "globe" });
     } catch {}
 
     if (!m.getSource("terminator")) {
@@ -240,6 +248,19 @@ export default function MapView({
     m.on("mouseenter", "entity-points", () => (m.getCanvas().style.cursor = "pointer"));
     m.on("mouseleave", "entity-points", () => (m.getCanvas().style.cursor = ""));
 
+    // cursor lat/lng + zoom readout (throttled)
+    let lastCur = 0;
+    m.on("mousemove", (e) => {
+      const now = e.originalEvent.timeStamp;
+      if (now - lastCur < 60) return;
+      lastCur = now;
+      onCursorRef.current?.(e.lngLat.lat, e.lngLat.lng, m.getZoom());
+    });
+    m.on("zoom", () => {
+      const c = m.getCenter();
+      onCursorRef.current?.(c.lat, c.lng, m.getZoom());
+    });
+
     // imperative control surface for the parent (rail buttons, search fly-to)
     if (apiRef) {
       apiRef.current = {
@@ -276,6 +297,15 @@ export default function MapView({
     pushData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entities, arcs, selected]);
+
+  // ---- projection (3D globe <-> 2D flat) ----
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    try {
+      m.setProjection({ type: projection === "flat" ? "mercator" : "globe" });
+    } catch {}
+  }, [projection]);
 
   // ---- cables visibility ----
   useEffect(() => {
