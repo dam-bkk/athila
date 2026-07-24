@@ -23,6 +23,7 @@ const RAIL: { id: LayerId; icon: string; label: string }[] = [
   { id: "infrastructure", icon: "⬡", label: "Nuclear" },
   { id: "gdelt", icon: "◇", label: "Disasters" },
   { id: "live-news", icon: "▷", label: "News TV" },
+  { id: "animals", icon: "❋", label: "Wildlife" },
 ];
 
 export default function Console() {
@@ -47,7 +48,7 @@ export default function Console() {
   const [place, setPlace] = useState("");
   const [kp, setKp] = useState<{ kp: number; color: string; level: string }>({ kp: 0, color: "#00e676", level: "—" });
   const [markets, setMarkets] = useState<Record<string, number>>({});
-  const [acPhoto, setAcPhoto] = useState<{ photo: string; credit: string; link: string } | null>(null);
+  const [acPhoto, setAcPhoto] = useState<{ photo: string; credit: string; link: string; source: string } | null>(null);
   const globeApi = useRef<GlobeControl | null>(null);
   const isMobile = useIsMobile();
   useEffect(() => { if (isMobile) { setPanelOpen(false); setOsintOpen(false); } }, [isMobile]);
@@ -131,14 +132,16 @@ export default function Console() {
     return () => { clearInterval(a); clearInterval(b); };
   }, []);
 
-  // Aircraft photo for the selected plane (planespotters).
+  // Representative image for the selected object (planespotters for aircraft,
+  // Wikipedia thumbnail for everything else).
   useEffect(() => {
     setAcPhoto(null);
-    if (selected?.layer !== "aircraft") return;
+    if (!selected) return;
     let alive = true;
-    fetch("/api/aircraft-photo?hex=" + encodeURIComponent(selected.id))
+    const p = new URLSearchParams({ layer: selected.layer, label: selected.label, id: selected.id });
+    fetch("/api/entity-image?" + p.toString())
       .then((r) => r.json())
-      .then((j) => { if (alive && j.ok) setAcPhoto({ photo: j.photo, credit: j.credit, link: j.link }); })
+      .then((j) => { if (alive && j.ok) setAcPhoto({ photo: j.image, credit: j.credit, link: j.link, source: j.source }); })
       .catch(() => {});
     return () => { alive = false; };
   }, [selected]);
@@ -321,7 +324,7 @@ export default function Console() {
             <a href={acPhoto.link || "#"} target="_blank" rel="noopener noreferrer" style={{ display: "block", margin: "10px 0 4px" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={acPhoto.photo} alt={selected.label} style={{ width: "100%", borderRadius: 8, border: "1px solid var(--line)", display: "block" }} />
-              <div style={{ fontSize: 9, color: "var(--dim2)", marginTop: 3 }}>📷 {acPhoto.credit} · planespotters.net</div>
+              <div style={{ fontSize: 9, color: "var(--dim2)", marginTop: 3 }}>© {acPhoto.credit} · {acPhoto.source}</div>
             </a>
           )}
           <div style={{ margin: "12px 0", height: 1, background: "var(--line)" }} />

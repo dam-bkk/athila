@@ -16,7 +16,7 @@ export type LayerState = {
 
 const REST_LAYERS: LayerId[] = [
   "aircraft", "earthquakes", "launches", "volcanoes", "open-secrets", "webcams", "vessels",
-  "conflicts", "gdelt", "infrastructure", "live-news",
+  "conflicts", "gdelt", "infrastructure", "live-news", "animals",
 ];
 const LIVE_MS: Partial<Record<LayerId, number>> = {
   aircraft: 15000,

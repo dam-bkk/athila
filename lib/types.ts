@@ -53,7 +53,7 @@ export const LAYERS: LayerMeta[] = [
   { id: "open-secrets",name: "Open Secrets",  glyph: "◈", color: "#ff4da6", desc: "Thought secret — actually public (OSINT)", needsKey: false, live: false },
   { id: "wildfires",   name: "Wildfires",     glyph: "◆", color: "#ff7a1a", desc: "Active fire hotspots (NASA FIRMS)", needsKey: true,  keyName: "FIRMS_KEY",   live: true },
   { id: "vessels",     name: "Vessels",       glyph: "⬢", color: "#39c0ff", desc: "Live maritime AIS (AISStream)",     needsKey: false, live: true },
-  { id: "animals",     name: "Wildlife",      glyph: "❋", color: "#a0e04d", desc: "GPS-tagged fauna (Movebank)",       needsKey: true,  keyName: "MOVEBANK_USER", live: false },
+  { id: "animals",     name: "Wildlife",      glyph: "❋", color: "#a0e04d", desc: "Tagged fauna — sharks, whales, elephants, rhinos", needsKey: false, live: false },
   { id: "webcams",     name: "Webcams",       glyph: "⧉", color: "#c98bff", desc: "Curated public livestreams",        needsKey: false, live: false },
   { id: "conflicts",   name: "Conflict Zones",glyph: "✸", color: "#ff4d4d", desc: "Active conflicts (OSINT/liveuamap)",needsKey: false, live: false },
   { id: "gdelt",       name: "Disaster Alerts",glyph: "◇", color: "#ffd23f", desc: "Global disasters (GDACS)",          needsKey: false, live: true  },

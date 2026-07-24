@@ -10,7 +10,11 @@ async function load() {
     { cache: "no-store", signal: AbortSignal.timeout(8000) }
   );
   const rows = (await r.json()) as [string, string, string, string][];
-  const last = rows[rows.length - 1];
+  // Row 0 is a header; find the last row whose Kp parses to a finite number.
+  let last: [string, string, string, string] | undefined;
+  for (let i = rows.length - 1; i > 0; i--) {
+    if (Number.isFinite(parseFloat(rows[i]?.[1]))) { last = rows[i]; break; }
+  }
   const kp = last ? Math.round(parseFloat(last[1])) : 0;
   const level =
     kp >= 7 ? "Severe storm" : kp >= 5 ? "Geomagnetic storm" : kp >= 4 ? "Unsettled" : "Quiet";
