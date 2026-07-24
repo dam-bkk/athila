@@ -381,28 +381,6 @@ export default function Console() {
         </div>
       )}
 
-      {/* ===== Bottom timeline / status (desktop only) ===== */}
-      {!isMobile && (
-      <div className="glass" style={{ position: "fixed", left: 70, right: 12, bottom: 12, height: 68, borderRadius: 14, zIndex: 15, display: "flex", alignItems: "center", padding: "0 18px", gap: 20 }}>
-        <div>
-          <div className="eyebrow">UTC clock</div>
-          <Clock />
-        </div>
-        <div style={{ width: 1, height: 34, background: "var(--line)" }} />
-        <div style={{ flex: 1, position: "relative", height: 34 }}>
-          <div style={{ position: "absolute", top: 8, left: 0, right: 0, height: 2, background: "var(--line-str)" }} />
-          {LAYERS.filter((l) => enabled[l.id]).map((l, i) => (
-            <span key={l.id} style={{ position: "absolute", top: 3, left: `${8 + i * 12}%`, width: 8, height: 8, borderRadius: "50%", background: l.color, boxShadow: `0 0 10px ${l.color}` }} />
-          ))}
-          <div style={{ position: "absolute", bottom: 0, left: 0, fontSize: 9.5, color: "var(--dim2)" }}>
-            All data shown is public, unclassified and for demonstration purposes — open feeds only.
-          </div>
-        </div>
-        <button style={{ ...segBtn(false), padding: "7px 14px" }}>⏸ 1×</button>
-        <button style={{ ...segBtn(true), padding: "7px 14px" }}>▶ Go Live</button>
-      </div>
-      )}
-
       {/* ===== Live log (desktop only) ===== */}
       <div className="glass" style={{ position: "fixed", right: 12, bottom: 92, width: 288, borderRadius: 12, padding: "10px 12px", zIndex: 14, display: isMobile || selected ? "none" : "block" }}>
         <div className="eyebrow" style={{ marginBottom: 6 }}>System feed</div>
@@ -434,17 +412,6 @@ function useIsMobile() {
     return () => mq.removeEventListener("change", on);
   }, []);
   return m;
-}
-
-function Clock() {
-  const [t, setT] = useState("--:--:--");
-  useEffect(() => {
-    const tick = () => setT(new Date().toISOString().slice(11, 19));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <div className="mono tabular" style={{ fontSize: 17, fontWeight: 600 }}>{t}</div>;
 }
 
 const railBtn = (on: boolean): React.CSSProperties => ({
