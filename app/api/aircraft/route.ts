@@ -20,15 +20,28 @@ type Ac = {
   lat: number; lon: number; alt_baro?: number | string; gs?: number; track?: number; baro_rate?: number;
 };
 
+async function fetchPoint(lat: number, lon: number): Promise<Ac[]> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await fetch(`https://api.adsb.lol/v2/point/${lat}/${lon}/250`, { cache: "no-store" });
+      if (r.status === 429) { await new Promise((s) => setTimeout(s, 500)); continue; }
+      if (!r.ok) return [];
+      const j = (await r.json()) as { ac?: Ac[] };
+      return j.ac || [];
+    } catch { return []; }
+  }
+  return [];
+}
+
 async function fromAdsbLol(): Promise<Entity[]> {
-  const results = await Promise.all(
-    GRID.map(([lat, lon]) =>
-      fetch(`https://api.adsb.lol/v2/point/${lat}/${lon}/250`, { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : { ac: [] }))
-        .then((j: { ac?: Ac[] }) => j.ac || [])
-        .catch(() => [] as Ac[])
-    )
-  );
+  // Batched to respect adsb.lol's per-IP rate limit (parallel-all → mostly 429).
+  const results: Ac[][] = [];
+  const BATCH = 6;
+  for (let i = 0; i < GRID.length; i += BATCH) {
+    const chunk = GRID.slice(i, i + BATCH);
+    results.push(...(await Promise.all(chunk.map(([lat, lon]) => fetchPoint(lat, lon)))));
+    if (i + BATCH < GRID.length) await new Promise((s) => setTimeout(s, 250));
+  }
   const seen = new Set<string>();
   const out: Entity[] = [];
   for (const ac of results) {
