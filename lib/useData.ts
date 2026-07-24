@@ -14,11 +14,15 @@ export type LayerState = {
   count: number;
 };
 
-const REST_LAYERS: LayerId[] = ["aircraft", "earthquakes", "launches", "volcanoes", "open-secrets", "webcams", "vessels"];
+const REST_LAYERS: LayerId[] = [
+  "aircraft", "earthquakes", "launches", "volcanoes", "open-secrets", "webcams", "vessels",
+  "conflicts", "gdelt", "infrastructure", "live-news",
+];
 const LIVE_MS: Partial<Record<LayerId, number>> = {
   aircraft: 15000,
   earthquakes: 60000,
   vessels: 15000,
+  gdelt: 300000,
 };
 
 export function useData(satCap: number) {

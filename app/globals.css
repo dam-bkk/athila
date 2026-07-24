@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  /* Gotham-navy base + substi-view glass */
-  --bg:        #070b14;
-  --bg2:       #0a1120;
-  --panel:     rgba(13, 22, 40, 0.72);
-  --panel-solid:#0c1424;
-  --header:    #14243d;
-  --line:      rgba(120, 160, 220, 0.14);
-  --line-str:  rgba(120, 160, 220, 0.28);
-  --txt:       #e6edf7;
-  --dim:       #8ba0c0;
-  --dim2:      #5f7396;
-  --accent:    #2f6be0;
-  --accent-hi: #4d86ff;
-  --teal:      #4de0c8;
-  --amber:     #ffb020;
+  /* ARGOS — Palantir-gold on near-black */
+  --bg:        #05060a;
+  --bg2:       #0a0c12;
+  --panel:     rgba(12, 14, 20, 0.78);
+  --panel-solid:#0b0d13;
+  --header:    #14161e;
+  --line:      rgba(212, 175, 55, 0.16);
+  --line-str:  rgba(212, 175, 55, 0.34);
+  --txt:       #ece7d8;
+  --dim:       #a99f86;
+  --dim2:      #6f6853;
+  --accent:    #d4af37;
+  --accent-hi: #f0cf5a;
+  --teal:      #7fd8c4;
+  --amber:     #e0a52a;
   --orbit:     #e8843c;
-  --sel:       #57d957;
-  --danger:    #ff3b5c;
+  --sel:       #c9a227;
+  --danger:    #ff4d4d;
 }
 
 * { box-sizing: border-box; }

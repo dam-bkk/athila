@@ -13,7 +13,7 @@ export async function GET(req: Request) {
       const url =
         "https://nominatim.openstreetmap.org/search?format=json&limit=5&q=" + encodeURIComponent(q);
       const r = await fetch(url, {
-        headers: { "User-Agent": "athila-geospatial-console/1.0 (contact: damien.asia)" },
+        headers: { "User-Agent": "argos-geospatial-console/1.0 (contact: damien.asia)" },
         cache: "no-store",
       });
       if (!r.ok) throw new Error("nominatim " + r.status);

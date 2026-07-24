@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import { LAYERS, type Entity, type LayerId, type GlobeControl } from "@/lib/types";
 import { useData } from "@/lib/useData";
-import GlobeCanvas from "./GlobeCanvas";
+import type { Basemap } from "./MapView";
 
-// Heavy 3D engine — load only when the user switches to 3D view.
-const CesiumGlobe = nextDynamic(() => import("./CesiumGlobe"), { ssr: false });
+// MapLibre GL engine (globe projection + vector tiles) — client-only.
+const MapView = nextDynamic(() => import("./MapView"), { ssr: false });
 
 const CAPS: Partial<Record<LayerId, number>> = { aircraft: 2500, vessels: 3000 };
 
@@ -21,15 +21,19 @@ export default function Console() {
     launches: true,
     volcanoes: false,
     "open-secrets": true,
+    conflicts: true,
+    infrastructure: true,
+    gdelt: false,
+    "live-news": false,
   });
   const [selected, setSelected] = useState<Entity | null>(null);
-  const [imagery, setImagery] = useState<"night" | "day" | "topo" | "clouds">("night");
+  const [imagery, setImagery] = useState<Basemap>("dark");
   const [rotate, setRotate] = useState(false);
   const [tracks, setTracks] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [mode, setMode] = useState<"globe" | "3d">("globe");
   const [query, setQuery] = useState("");
   const [localCams, setLocalCams] = useState<Entity[]>([]);
+  const [cyberArcs, setCyberArcs] = useState<{ startLat: number; startLng: number; endLat: number; endLng: number; color: string[] }[]>([]);
   const globeApi = useRef<GlobeControl | null>(null);
   const isMobile = useIsMobile();
   useEffect(() => { if (isMobile) setPanelOpen(false); }, [isMobile]);
@@ -91,6 +95,29 @@ export default function Console() {
     } catch { /* ignore */ }
   };
 
+  // Cyber-attack arcs: fetch when the layer is on, refresh for a live feel.
+  useEffect(() => {
+    if (!enabled["cyber-attacks"]) { setCyberArcs([]); return; }
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/cyber-attacks", { cache: "no-store" });
+        const j = await r.json();
+        if (alive && j.arcs) {
+          setCyberArcs(
+            j.arcs.map((a: { startLat: number; startLng: number; endLat: number; endLng: number; color: string }) => ({
+              startLat: a.startLat, startLng: a.startLng, endLat: a.endLat, endLng: a.endLng,
+              color: [a.color, a.color],
+            }))
+          );
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    const t = setInterval(load, 6000);
+    return () => { alive = false; clearInterval(t); };
+  }, [enabled]);
+
   // Heading vectors: for all visible aircraft when "tracks" is on, plus the
   // selected aircraft highlighted.
   const arcs = useMemo(() => {
@@ -113,27 +140,24 @@ export default function Console() {
         .forEach((p) => out.push(vec(p, ["#4de0c8", "rgba(77,224,200,0)"], 2.5)));
     }
     if (selected?.layer === "aircraft") out.push(vec(selected, ["#ffd23f", "#2f6be0"], 4));
+    for (const c of cyberArcs) out.push(c);
     return out;
-  }, [tracks, shown, selected]);
+  }, [tracks, shown, selected, cyberArcs]);
 
   const totalTracked = LAYERS.reduce((a, l) => a + (enabled[l.id] ? layers[l.id]?.count || 0 : 0), 0);
   const aircraftLive = layers.aircraft?.count || 0;
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      {mode === "3d" ? (
-        <CesiumGlobe entities={shown} selected={selected} onSelect={setSelected} apiRef={globeApi} />
-      ) : (
-        <GlobeCanvas
-          entities={shown}
-          selected={selected}
-          onSelect={setSelected}
-          arcs={arcs}
-          imagery={imagery}
-          autoRotate={rotate}
-          apiRef={globeApi}
-        />
-      )}
+      <MapView
+        entities={shown}
+        selected={selected}
+        onSelect={setSelected}
+        arcs={arcs}
+        imagery={imagery}
+        autoRotate={rotate}
+        apiRef={globeApi}
+      />
 
       {/* ===== Left icon rail ===== */}
       <div
@@ -154,14 +178,14 @@ export default function Console() {
         <button title="Zoom arrière" style={railBtn(false)} onClick={() => globeApi.current?.zoom(1.4)}>−</button>
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 9, color: "var(--dim2)", writingMode: "vertical-rl", letterSpacing: ".3em" }}>
-          ATHILA
+          ARGOS
         </div>
       </div>
 
       {/* ===== Top bar ===== */}
       <div style={{ position: "fixed", left: 70, top: 12, right: 12, display: "flex", gap: 8, zIndex: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div className="glass" style={{ borderRadius: 12, padding: "10px 16px" }}>
-          <div style={{ fontWeight: 700, letterSpacing: ".2em", fontSize: 15 }}>ATHILA</div>
+          <div style={{ fontWeight: 700, letterSpacing: ".2em", fontSize: 15 }}>ARGOS</div>
           <div className="eyebrow" style={{ marginTop: 2 }}>Geospatial console · LIVE</div>
         </div>
 
@@ -179,7 +203,7 @@ export default function Console() {
               {places.map((p, i) => (
                 <div key={"pl" + i} onClick={() => flyToPlace(p.lat, p.lng)}
                   style={{ padding: "9px 12px", fontSize: 12, cursor: "pointer", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(45,107,224,.18)")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(212,175,55,.15)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                   <span style={{ color: "var(--accent-hi)" }}>📍</span>
                   <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</span>
@@ -201,24 +225,16 @@ export default function Console() {
 
         <div style={{ flex: 1 }} />
 
-        {/* view engine */}
+        {/* basemap + overlays */}
         <div className="glass" style={{ borderRadius: 12, padding: 4, display: "flex", gap: 2 }}>
-          <button onClick={() => setMode("globe")} style={segBtn(mode === "globe")}>◍ Globe</button>
-          <button onClick={() => setMode("3d")} style={segBtn(mode === "3d")}>◉ 3D</button>
-        </div>
-
-        {/* imagery + rotate (globe view only) */}
-        {mode === "globe" && (
-        <div className="glass" style={{ borderRadius: 12, padding: 4, display: "flex", gap: 2 }}>
-          {(["night", "day", "clouds", "topo"] as const).map((m) => (
+          {(["dark", "satellite", "streets"] as const).map((m) => (
             <button key={m} onClick={() => setImagery(m)} style={segBtn(imagery === m)}>
-              {m === "night" ? "Night" : m === "day" ? "Day" : m === "clouds" ? "Clouds ⛅" : "Terrain"}
+              {m === "dark" ? "Dark" : m === "satellite" ? "Satellite" : "Streets"}
             </button>
           ))}
           <button onClick={() => setTracks((t) => !t)} style={segBtn(tracks)}>✈ Tracks</button>
           <button onClick={() => setRotate((r) => !r)} style={segBtn(rotate)}>⟳ Spin</button>
         </div>
-        )}
 
         <div className="glass" style={{ borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
           <span className="pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--sel)" }} />
@@ -256,7 +272,7 @@ export default function Console() {
               ) : (
                 <>
                   <span className="tabular" style={{ fontSize: 10.5, color: "var(--dim)" }}>{st?.count ? st.count.toLocaleString("en") : "—"}</span>
-                  <span style={{ width: 30, height: 17, borderRadius: 9, background: on ? "var(--accent)" : "#1c2740", position: "relative", flex: "none", transition: ".18s" }}>
+                  <span style={{ width: 30, height: 17, borderRadius: 9, background: on ? "var(--accent)" : "#22252e", position: "relative", flex: "none", transition: ".18s" }}>
                     <span style={{ position: "absolute", top: 2, left: on ? 15 : 2, width: 13, height: 13, borderRadius: "50%", background: "#fff", transition: ".18s" }} />
                   </span>
                 </>
@@ -402,9 +418,10 @@ function Clock() {
 
 const railBtn = (on: boolean): React.CSSProperties => ({
   width: 32, height: 32, borderRadius: 8, border: "1px solid var(--line)",
-  background: on ? "var(--accent)" : "transparent", color: on ? "#fff" : "var(--dim)", fontSize: 14,
+  background: on ? "var(--accent)" : "transparent", color: on ? "#0a0b10" : "var(--dim)", fontSize: 14,
+  fontWeight: on ? 700 : 400,
 });
 const segBtn = (on: boolean): React.CSSProperties => ({
-  border: 0, background: on ? "var(--accent)" : "transparent", color: on ? "#fff" : "var(--dim)",
-  fontSize: 11, padding: "8px 11px", borderRadius: 8, letterSpacing: ".02em",
+  border: 0, background: on ? "var(--accent)" : "transparent", color: on ? "#0a0b10" : "var(--dim)",
+  fontSize: 11, padding: "8px 11px", borderRadius: 8, letterSpacing: ".02em", fontWeight: on ? 700 : 400,
 });

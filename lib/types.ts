@@ -11,7 +11,12 @@ export type LayerId =
   | "wildfires"
   | "vessels"
   | "animals"
-  | "webcams";
+  | "webcams"
+  | "conflicts"
+  | "gdelt"
+  | "infrastructure"
+  | "live-news"
+  | "cyber-attacks";
 
 export type Entity = {
   uid: string;            // globally unique: `${layer}:${id}`
@@ -49,6 +54,11 @@ export const LAYERS: LayerMeta[] = [
   { id: "vessels",     name: "Vessels",       glyph: "⬢", color: "#39c0ff", desc: "Live maritime AIS (AISStream)",     needsKey: false, live: true },
   { id: "animals",     name: "Wildlife",      glyph: "❋", color: "#a0e04d", desc: "GPS-tagged fauna (Movebank)",       needsKey: true,  keyName: "MOVEBANK_USER", live: false },
   { id: "webcams",     name: "Webcams",       glyph: "⧉", color: "#c98bff", desc: "Curated public livestreams",        needsKey: false, live: false },
+  { id: "conflicts",   name: "Conflict Zones",glyph: "✸", color: "#ff4d4d", desc: "Active conflicts (OSINT/liveuamap)",needsKey: false, live: false },
+  { id: "gdelt",       name: "Disaster Alerts",glyph: "◇", color: "#ffd23f", desc: "Global disasters (GDACS)",          needsKey: false, live: true  },
+  { id: "infrastructure",name: "Nuclear/Infra",glyph: "⬡", color: "#7fd8c4", desc: "Nuclear power stations (IAEA)",     needsKey: false, live: false },
+  { id: "live-news",   name: "Live News TV",  glyph: "▷", color: "#ff7ac4", desc: "24/7 news livestreams (YouTube)",   needsKey: false, live: false },
+  { id: "cyber-attacks",name: "Cyber Threats", glyph: "⚡", color: "#ff9f1c", desc: "Live attack arcs (abuse.ch)",       needsKey: false, live: true  },
 ];
 
 export const LAYER_MAP: Record<LayerId, LayerMeta> = Object.fromEntries(
