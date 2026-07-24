@@ -25,6 +25,7 @@ export default function Console() {
     infrastructure: true,
     gdelt: false,
     "live-news": false,
+    cables: true,
   });
   const [selected, setSelected] = useState<Entity | null>(null);
   const [imagery, setImagery] = useState<Basemap>("dark");
@@ -95,6 +96,35 @@ export default function Console() {
     } catch { /* ignore */ }
   };
 
+  // Opening animation: geolocate the visitor (IP) and cinematically fly the
+  // globe to their location once the map is ready — like osiris on load.
+  const introDone = useRef(false);
+  useEffect(() => {
+    if (introDone.current) return;
+    let tries = 0;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const r = await fetch("/api/geoip", { cache: "no-store" });
+        const j = await r.json();
+        if (cancelled || !j.ok) return;
+        // wait for the map control to be wired, then fly
+        const fly = () => {
+          if (cancelled) return;
+          if (globeApi.current?.intro) {
+            introDone.current = true;
+            setTimeout(() => globeApi.current?.intro?.(j.lat, j.lng), 900);
+          } else if (tries++ < 40) {
+            setTimeout(fly, 150);
+          }
+        };
+        fly();
+      } catch { /* ignore — stay on world view */ }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);
+
   // Cyber-attack arcs: fetch when the layer is on, refresh for a live feel.
   useEffect(() => {
     if (!enabled["cyber-attacks"]) { setCyberArcs([]); return; }
@@ -156,6 +186,7 @@ export default function Console() {
         arcs={arcs}
         imagery={imagery}
         autoRotate={rotate}
+        showCables={!!enabled["cables"]}
         apiRef={globeApi}
       />
 

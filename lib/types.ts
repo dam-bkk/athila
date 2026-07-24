@@ -16,7 +16,8 @@ export type LayerId =
   | "gdelt"
   | "infrastructure"
   | "live-news"
-  | "cyber-attacks";
+  | "cyber-attacks"
+  | "cables";
 
 export type Entity = {
   uid: string;            // globally unique: `${layer}:${id}`
@@ -59,6 +60,7 @@ export const LAYERS: LayerMeta[] = [
   { id: "infrastructure",name: "Nuclear/Infra",glyph: "⬡", color: "#7fd8c4", desc: "Nuclear power stations (IAEA)",     needsKey: false, live: false },
   { id: "live-news",   name: "Live News TV",  glyph: "▷", color: "#ff7ac4", desc: "24/7 news livestreams (YouTube)",   needsKey: false, live: false },
   { id: "cyber-attacks",name: "Cyber Threats", glyph: "⚡", color: "#ff9f1c", desc: "Live attack arcs (abuse.ch)",       needsKey: false, live: true  },
+  { id: "cables",      name: "Subsea Cables", glyph: "≈", color: "#4aa3ff", desc: "Submarine cables (TeleGeography)",   needsKey: false, live: false },
 ];
 
 export const LAYER_MAP: Record<LayerId, LayerMeta> = Object.fromEntries(
@@ -71,4 +73,5 @@ export type GlobeControl = {
   reset: () => void;
   flyTo?: (e: Entity) => void;
   flyToPlace?: (lat: number, lng: number) => void;
+  intro?: (lat: number, lng: number) => void; // cinematic opening fly-to-you
 };

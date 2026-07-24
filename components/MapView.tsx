@@ -53,6 +53,7 @@ export default function MapView({
   arcs,
   imagery = "dark",
   autoRotate = false,
+  showCables = true,
   apiRef,
 }: {
   entities: Entity[];
@@ -61,6 +62,7 @@ export default function MapView({
   arcs: Arc[];
   imagery?: Basemap;
   autoRotate?: boolean;
+  showCables?: boolean;
   apiRef?: React.MutableRefObject<GlobeControl | null>;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -69,10 +71,12 @@ export default function MapView({
   const arcsRef = useRef<Arc[]>(arcs);
   const selectedRef = useRef<Entity | null>(selected);
   const onSelectRef = useRef(onSelect);
+  const showCablesRef = useRef(showCables);
   entitiesRef.current = entities;
   arcsRef.current = arcs;
   selectedRef.current = selected;
   onSelectRef.current = onSelect;
+  showCablesRef.current = showCables;
 
   // ---- GeoJSON builders ----
   const entityFC = (): GeoJSON.FeatureCollection => ({
@@ -123,6 +127,30 @@ export default function MapView({
         type: "fill",
         source: "terminator",
         paint: { "fill-color": "#000010", "fill-opacity": 0.42 },
+      });
+    }
+    // Submarine cables (TeleGeography, bundled) — the glowing blue web. Two
+    // line layers: a soft wide glow + a crisp thin line, under everything else.
+    if (!m.getSource("cables")) {
+      m.addSource("cables", { type: "geojson", data: "/data/submarine-cables.json" });
+      const vis = showCablesRef.current ? "visible" : "none";
+      m.addLayer({
+        id: "cables-glow",
+        type: "line",
+        source: "cables",
+        layout: { visibility: vis, "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#3b82f6", "line-width": 2.4, "line-opacity": 0.18, "line-blur": 3 },
+      });
+      m.addLayer({
+        id: "cables-line",
+        type: "line",
+        source: "cables",
+        layout: { visibility: vis, "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#5cc3ff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 0.4, 6, 1],
+          "line-opacity": 0.55,
+        },
       });
     }
     if (!m.getSource("arcs")) {
@@ -220,6 +248,8 @@ export default function MapView({
         flyTo: (ent: Entity) => m.flyTo({ center: [ent.lng, ent.lat] as LngLatLike, zoom: 5, duration: 1200 }),
         flyToPlace: (lat: number, lng: number) =>
           m.flyTo({ center: [lng, lat] as LngLatLike, zoom: 9, duration: 1400 }),
+        intro: (lat: number, lng: number) =>
+          m.flyTo({ center: [lng, lat] as LngLatLike, zoom: 4.6, duration: 5200, curve: 1.5, essential: true }),
       };
     }
     return () => {
@@ -246,6 +276,16 @@ export default function MapView({
     pushData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entities, arcs, selected]);
+
+  // ---- cables visibility ----
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const v = showCables ? "visible" : "none";
+    for (const id of ["cables-glow", "cables-line"]) {
+      if (m.getLayer(id)) m.setLayoutProperty(id, "visibility", v);
+    }
+  }, [showCables]);
 
   // ---- auto-rotate ----
   useEffect(() => {
