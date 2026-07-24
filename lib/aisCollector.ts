@@ -51,9 +51,12 @@ function connect(key: string) {
       const lat = md.latitude ?? pr.Latitude;
       const lng = md.longitude ?? pr.Longitude;
       if (typeof mmsi !== "number" || typeof lat !== "number" || typeof lng !== "number") return;
+      // AIS sentinels for "not available": SOG 102.3 (1023), COG 360, heading 511.
+      const sog = typeof pr.Sog === "number" && pr.Sog < 102.3 ? pr.Sog : 0;
+      const cog = typeof pr.Cog === "number" && pr.Cog < 360 ? pr.Cog : 0;
       store.set(mmsi, {
         mmsi, name: (md.ShipName || "").trim() || String(mmsi),
-        lat, lng, sog: pr.Sog ?? 0, cog: pr.Cog ?? 0,
+        lat, lng, sog, cog,
         heading: pr.TrueHeading ?? 511, status: pr.NavigationalStatus ?? -1,
         lastSeen: lastMsg,
       });
