@@ -247,27 +247,6 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entities, arcs, selected]);
 
-  // ---- animated arc dash (marching-ants flow) ----
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const seq = [
-      [0, 4, 3],
-      [1, 4, 2, 1],
-      [2, 4, 1, 2],
-      [3, 4, 0, 3],
-    ];
-    let i = 0;
-    const id = setInterval(() => {
-      if (!m.getLayer("arcs")) return;
-      try {
-        m.setPaintProperty("arcs", "line-dasharray", seq[i % seq.length]);
-      } catch {}
-      i++;
-    }, 90);
-    return () => clearInterval(id);
-  }, []);
-
   // ---- auto-rotate ----
   useEffect(() => {
     const m = mapRef.current;

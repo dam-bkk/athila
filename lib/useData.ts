@@ -142,10 +142,11 @@ export function useData(satCap: number) {
     return () => timers.forEach(clearInterval);
   }, [fetchRest]);
 
-  // satellite propagation loop
+  // satellite propagation loop — 6s is smooth enough for orbital motion at
+  // globe scale and keeps CPU/GPU idle between ticks (avoid overheating).
   useEffect(() => {
     propagate();
-    const t = setInterval(propagate, 2000);
+    const t = setInterval(propagate, 6000);
     return () => clearInterval(t);
   }, [propagate]);
 
