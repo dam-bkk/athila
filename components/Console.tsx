@@ -128,7 +128,7 @@ export default function Console() {
     const loadKp = () => fetch("/api/space-weather").then((r) => r.json()).then((j) => j.ok && setKp(j)).catch(() => {});
     const loadMk = () => fetch("/api/markets").then((r) => r.json()).then((j) => j.crypto && setMarkets(j.crypto)).catch(() => {});
     loadKp(); loadMk();
-    const a = setInterval(loadKp, 600_000), b = setInterval(loadMk, 60_000);
+    const a = setInterval(() => !document.hidden && loadKp(), 600_000), b = setInterval(() => !document.hidden && loadMk(), 60_000);
     return () => { clearInterval(a); clearInterval(b); };
   }, []);
 
@@ -159,7 +159,7 @@ export default function Console() {
       } catch { /* ignore */ }
     };
     load();
-    const t = setInterval(load, 6000);
+    const t = setInterval(() => { if (!document.hidden) load(); }, 6000);
     return () => { alive = false; clearInterval(t); };
   }, [enabled]);
 

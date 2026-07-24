@@ -25,7 +25,7 @@ export async function GET() {
     lat: c.lat,
     lng: c.lng,
     altKm: 0,
-    color: "#ff7ac4",
+    color: "#e040fb",
     props: {
       Channel: c.name,
       Location: `${c.city}, ${c.country}`,

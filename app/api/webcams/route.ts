@@ -28,12 +28,28 @@ const CURATED: Cam[] = [
   { id: "santorini", name: "Oia Sunset", city: "Santorin", country: "Grèce", lat: 36.4618, lng: 25.3753, feed: "https://www.skylinewebcams.com/en/webcam/greece/aegean/cyclades/santorini-oia.html" },
   { id: "copacabana", name: "Copacabana Beach", city: "Rio", country: "Brésil", lat: -22.9711, lng: -43.1822, feed: "https://www.skylinewebcams.com/en/webcam/brasil/rio-de-janeiro/rio-de-janeiro/copacabana.html" },
   { id: "reykjavik", name: "Volcan / Reykjavík", city: "Reykjavík", country: "Islande", lat: 64.1466, lng: -21.9426, feed: "https://www.ruv.is/eldgos" },
+  { id: "big-ben", name: "Big Ben / Westminster", city: "Londres", country: "UK", lat: 51.5007, lng: -0.1246, feed: "https://www.skylinewebcams.com/en/webcam/united-kingdom/england/london/london.html" },
+  { id: "colosseo", name: "Colisée", city: "Rome", country: "Italie", lat: 41.8902, lng: 12.4922, feed: "https://www.skylinewebcams.com/en/webcam/italia/lazio/roma/roma-colosseo.html" },
+  { id: "barcelona", name: "Sagrada Família", city: "Barcelone", country: "Espagne", lat: 41.4036, lng: 2.1744, feed: "https://www.skylinewebcams.com/en/webcam/espana/cataluna/barcelona/barcelona.html" },
+  { id: "amsterdam", name: "Amsterdam Centre", city: "Amsterdam", country: "Pays-Bas", lat: 52.3676, lng: 4.9041, feed: "https://www.skylinewebcams.com/en/webcam/nederland/noord-holland/amsterdam/amsterdam.html" },
+  { id: "hollywood", name: "Hollywood Sign", city: "Los Angeles", country: "USA", lat: 34.1341, lng: -118.3215, feed: "https://www.earthcam.com/usa/california/hollywood/?cam=hollywoodsign" },
+  { id: "miami-beach", name: "Miami Beach", city: "Miami", country: "USA", lat: 25.7907, lng: -80.1300, feed: "https://www.earthcam.com/usa/florida/miamibeach/?cam=miamibeach" },
+  { id: "sf-bridge", name: "Golden Gate Bridge", city: "San Francisco", country: "USA", lat: 37.8199, lng: -122.4783, feed: "https://www.earthcam.com/usa/california/sanfrancisco/goldengate/?cam=ggbridge" },
+  { id: "singapore-mbs", name: "Marina Bay Sands", city: "Singapour", country: "Singapour", lat: 1.2834, lng: 103.8607, feed: "https://www.skylinewebcams.com/en/webcam/singapore/singapore/singapore.html" },
+  { id: "hongkong", name: "Victoria Harbour", city: "Hong Kong", country: "Chine", lat: 22.2793, lng: 114.1628, feed: "https://www.skylinewebcams.com/en/webcam/china/hong-kong/hong-kong.html" },
+  { id: "capetown", name: "Table Mountain", city: "Le Cap", country: "Afrique du Sud", lat: -33.9628, lng: 18.4098, feed: "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/cape-town.html" },
+  { id: "kruger", name: "Africam — Kruger", city: "Kruger", country: "Afrique du Sud", lat: -24.9964, lng: 31.5547, feed: "https://www.africam.com/" },
+  { id: "moscow-red", name: "Place Rouge", city: "Moscou", country: "Russie", lat: 55.7539, lng: 37.6208, feed: "https://www.skylinewebcams.com/en/webcam/russia/moscow-city/moscow/red-square.html" },
+  { id: "istanbul", name: "Bosphore", city: "Istanbul", country: "Turquie", lat: 41.0082, lng: 28.9784, feed: "https://www.skylinewebcams.com/en/webcam/turkiye/istanbul/istanbul/istanbul.html" },
+  { id: "hawaii-volcano", name: "Kīlauea (USGS)", city: "Hawaï", country: "USA", lat: 19.4069, lng: -155.2834, feed: "https://www.usgs.gov/volcanoes/kilauea/webcams" },
+  { id: "jackson-hole", name: "Town Square", city: "Jackson Hole", country: "USA", lat: 43.4799, lng: -110.7624, feed: "https://www.seejh.com/live" },
+  { id: "venice-rialto", name: "Pont du Rialto", city: "Venise", country: "Italie", lat: 45.4380, lng: 12.3358, feed: "https://www.skylinewebcams.com/en/webcam/italia/veneto/venezia/rialto.html" },
 ];
 
 function curatedEntities(): Entity[] {
   return CURATED.map((c) => ({
     uid: "webcams:" + c.id, layer: "webcams", id: c.id, label: c.name,
-    lat: c.lat, lng: c.lng, altKm: 0, color: "#c98bff", ring: true,
+    lat: c.lat, lng: c.lng, altKm: 0, color: "#39ff14", ring: true,
     props: {
       Location: c.city + ", " + c.country,
       Coordinates: c.lat.toFixed(4) + ", " + c.lng.toFixed(4),
@@ -59,7 +75,7 @@ function toEntity(w: WindyCam): Entity | null {
     uid: "webcams:w" + w.webcamId, layer: "webcams", id: String(w.webcamId),
     label: w.title || "Webcam " + w.webcamId,
     lat: w.location.latitude, lng: w.location.longitude, altKm: 0,
-    color: "#c98bff", ring: false,
+    color: "#39ff14", ring: false,
     props: {
       Location: [w.location.city, w.location.country].filter(Boolean).join(", ") || "—",
       Coordinates: w.location.latitude.toFixed(4) + ", " + w.location.longitude.toFixed(4),
@@ -110,7 +126,9 @@ export async function GET(req: Request) {
       const data = await cached("webcams-windy", 3_600_000, () =>
         windyPaged(key, "https://api.windy.com/webcams/api/v3/webcams?", 1000)
       );
-      if (data.length) return NextResponse.json({ ok: true, source: "Windy Webcams", entities: data });
+      // Always merge the curated notable set on top of the Windy results.
+      const merged = [...curatedEntities(), ...data];
+      if (merged.length) return NextResponse.json({ ok: true, source: "Windy + curated", entities: merged });
     } catch {
       /* fall through to curated */
     }

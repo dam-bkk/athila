@@ -30,7 +30,7 @@ async function load(): Promise<Entity[]> {
       lat,
       lng,
       altKm: 0,
-      color: mag >= 5 ? "#ff2d55" : mag >= 3 ? "#ff5470" : "#ff8fa3",
+      color: mag >= 5 ? "#ff6a00" : mag >= 3 ? "#ff9500" : "#ffb74d",
       ring: true,
       ts: f.properties.time,
       props: {

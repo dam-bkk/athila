@@ -18,7 +18,7 @@ export function GET() {
     lat: v.lat,
     lng: v.lng,
     altKm: 0,
-    color: "#39c0ff",
+    color: "#1de9b6",
     props: {
       Vessel: v.name,
       MMSI: String(v.mmsi),

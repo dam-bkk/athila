@@ -58,7 +58,7 @@ async function fromAdsbLol(): Promise<Entity[]> {
         lat: a.lat,
         lng: a.lon,
         altKm: altFt * 0.0003048,
-        color: "#ffb020",
+        color: "#4dd0e1",
         props: {
           Callsign: call,
           Registration: (a.r || "—").trim(),

@@ -172,19 +172,7 @@ export default function MapView({
     }
     if (!m.getSource("entities")) {
       m.addSource("entities", { type: "geojson", data: EMPTY as GeoJSON.FeatureCollection });
-      // glow halo
-      m.addLayer({
-        id: "entity-glow",
-        type: "circle",
-        source: "entities",
-        paint: {
-          "circle-color": ["get", "color"],
-          "circle-blur": 1,
-          "circle-opacity": 0.5,
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, ["*", ["get", "r"], 1.6], 6, ["*", ["get", "r"], 3]],
-        },
-      });
-      // core dot
+      // core dot (crisp — no full-canvas blur layer, keeps the GPU cool)
       m.addLayer({
         id: "entity-points",
         type: "circle",

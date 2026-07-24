@@ -33,7 +33,7 @@ export async function GET() {
       lat: n.lat,
       lng: n.lng,
       altKm: 0,
-      color: "#7fd8c4",
+      color: "#00e5ff",
       props: {
         Facility: n.name,
         Type: "Nuclear power station",

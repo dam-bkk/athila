@@ -20,7 +20,7 @@ const TYPE: Record<string, string> = {
   EQ: "Earthquake", TC: "Cyclone", FL: "Flood", VO: "Volcano", DR: "Drought", WF: "Wildfire",
 };
 const ALERT_COLOR: Record<string, string> = {
-  Red: "#ff4d4d", Orange: "#ff9f1c", Green: "#ffd23f",
+  Red: "#d500f9", Orange: "#b388ff", Green: "#9575ff",
 };
 
 function reportUrl(u: GProps["url"]): string {

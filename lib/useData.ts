@@ -112,7 +112,7 @@ export function useData(satCap: number) {
           lat: satellite.degreesLat(gd.latitude),
           lng: satellite.degreesLong(gd.longitude),
           altKm,
-          color: altKm > 30000 ? "#4de0c8" : altKm > 2000 ? "#7c9cff" : "#9db4ff",
+          color: altKm > 30000 ? "#ffd23f" : altKm > 2000 ? "#ffcc33" : "#e6b422",
           props: {
             Object: s.name,
             Group: s.group,
@@ -134,19 +134,20 @@ export function useData(satCap: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // live refresh timers
+  // live refresh timers — paused while the tab is hidden (no wasted CPU/GPU).
   useEffect(() => {
     const timers = Object.entries(LIVE_MS).map(([id, ms]) =>
-      setInterval(() => fetchRest(id as LayerId), ms)
+      setInterval(() => { if (!document.hidden) fetchRest(id as LayerId); }, ms)
     );
     return () => timers.forEach(clearInterval);
   }, [fetchRest]);
 
   // satellite propagation loop — 6s is smooth enough for orbital motion at
   // globe scale and keeps CPU/GPU idle between ticks (avoid overheating).
+  // Skipped entirely while the tab is backgrounded.
   useEffect(() => {
     propagate();
-    const t = setInterval(propagate, 6000);
+    const t = setInterval(() => { if (!document.hidden) propagate(); }, 6000);
     return () => clearInterval(t);
   }, [propagate]);
 
